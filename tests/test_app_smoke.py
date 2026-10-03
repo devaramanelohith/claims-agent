@@ -7,7 +7,8 @@ from streamlit.testing.v1 import AppTest
 from securecare.agents.communicator import Communications
 
 APP = str(Path(__file__).resolve().parent.parent / "app.py")
-FAKE_KEY = "sk-test-" + "A1b2C3d4" * 4
+FAKE_KEY = "sk-or-v1-" + "A1b2C3d4" * 4      # default provider is OpenRouter
+FAKE_GEMINI_KEY = "AIza" + "A1b2C3d4" * 4
 
 
 def _app() -> AppTest:
@@ -93,14 +94,14 @@ def _patch_llm(monkeypatch, record):
                 def invoke(_, messages):
                     return Communications(officer_summary="Summary.", claimant_letter="placeholder")
             return R()
-    def fake_build(api_key, model="x"):
+    def fake_build(api_key, model="x", provider="openrouter"):
         record.append(api_key)
         return Fake()
     monkeypatch.setattr("securecare.agents.llm.build_llm", fake_build)
 
 
 def _key_widgets(at):
-    return [t for t in at.text_input if t.key and t.key.startswith("openai_key_")]
+    return [t for t in at.text_input if t.key and t.key.startswith("api_key_")]
 
 
 def test_key_is_flushed_after_submit_by_default(monkeypatch):
@@ -154,3 +155,25 @@ def test_bad_key_shape_skips_ai_and_warns(monkeypatch):
     at.checkbox(key="declaration").check().run()
     _click(at, "Submit claim")
     assert used == [] and any("does not look like" in w.value for w in at.warning)
+
+
+def test_gemini_provider_uses_gemini_key(monkeypatch):
+    calls = []
+    class Fake:
+        def with_structured_output(self, schema):
+            class R:
+                def invoke(_, messages):
+                    return Communications(officer_summary="Summary.", claimant_letter="placeholder")
+            return R()
+    def fake_build(api_key, model="x", provider="openrouter"):
+        calls.append((api_key, model, provider))
+        return Fake()
+    monkeypatch.setattr("securecare.agents.llm.build_llm", fake_build)
+    at = _app()
+    at.selectbox(key="provider").set_value("gemini").run()
+    _key_widgets(at)[0].set_value(FAKE_GEMINI_KEY).run()
+    _click(at, "Load sample")
+    at.checkbox(key="declaration").check().run()
+    _click(at, "Submit claim")
+    assert calls == [(FAKE_GEMINI_KEY, "gemini-2.5-flash", "gemini")]
+    assert FAKE_GEMINI_KEY not in _dump(at)

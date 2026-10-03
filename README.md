@@ -5,7 +5,7 @@ Built as the class project for the *FDE LangGraph* sessions: collect → validat
 
 * Validated form (inline alerts on every field, conditional sections, repeating bill rows)
 * LangGraph workflow: eligibility → calculation → document check → status → AI-drafted letters → verification
-* Optional AI (OpenAI): email autofill + letters. **Works without a key** (template letters)
+* Optional AI (**OpenRouter**, **Google Gemini** or OpenAI, picked in the sidebar): email autofill + letters. **Works without a key** (template letters)
 * Bring-your-own-key, **never shared between visitors** (see [Key safety](#key-safety))
 
 ## Project structure
@@ -35,7 +35,7 @@ securecare-claims/
 │   │   ├── runner.py            #   runs the graph, captures a node-by-node trace
 │   │   └── visualize.py         #   graph -> Graphviz DOT for the UI
 │   ├── agents/                  # LLM agents
-│   │   ├── llm.py               #   the ONLY place a ChatOpenAI client is created
+│   │   ├── llm.py               #   the ONLY place an LLM client is created (OpenRouter/Gemini/OpenAI)
 │   │   ├── extractor.py         #   email text -> structured fields
 │   │   └── communicator.py      #   officer summary + claimant letter (+ verification, fallback)
 │   └── ui/                      # Streamlit widgets
@@ -108,12 +108,13 @@ ephemeral (this app stores nothing), and public apps are visible to anyone with 
 
 ## Key safety
 
-Each visitor types **their own** OpenAI key in the sidebar. Other Streamlit apps leak keys between users
+Each visitor picks a provider (OpenRouter, Google Gemini or OpenAI) and types **their own** key in the sidebar.
+Get keys at <https://openrouter.ai/keys> (starts with `sk-or-`) or <https://aistudio.google.com/apikey> (starts with `AIza`). Other Streamlit apps leak keys between users
 when they do one of these things, and this project avoids all of them:
 
 | Leaky pattern | Why it leaks | What we do instead |
 |---|---|---|
-| `os.environ["OPENAI_API_KEY"] = key` | environment is **process-wide**, shared by all sessions | pass `api_key=` explicitly to `ChatOpenAI` |
+| `os.environ["OPENAI_API_KEY"] = key` | environment is **process-wide**, shared by all sessions | pass the key explicitly to the client in `build_llm()` |
 | `@st.cache_resource` / `@st.cache_data` on anything touching the key or the LLM client | caches are **shared across sessions** | no caching of LLM objects; the graph is rebuilt per submission |
 | module-level global / file / `.env` for the visitor's key | one process, one value for everybody | key lives only in the visitor's `st.session_state` |
 | `st.secrets` for the visitor's key | secrets belong to the app **owner** and are shared | not used; the app needs no secrets |
@@ -126,7 +127,7 @@ browser session*, and a *Clear key now* button always works.
 These behaviours are covered by tests in `tests/test_app_smoke.py` (two simulated visitors on one app,
 key absent from the second visitor's session and from `os.environ`, key erased after submit).
 
-> Do **not** put your own OpenAI key in Streamlit secrets for a public app: every visitor would spend your credits.
+> Do **not** put your own API key in Streamlit secrets for a public app: every visitor would spend your credits.
 > If you need that later, add authentication and a per-user usage cap first.
 > Also avoid enabling LangSmith tracing on a public deployment: traces would contain claim details.
 

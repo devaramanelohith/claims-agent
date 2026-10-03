@@ -10,9 +10,9 @@ import streamlit as st
 from securecare.agents.extractor import ClaimExtraction, extract_claim_from_text
 from securecare.agents.llm import build_llm
 from securecare.config import (
-    ADMISSION_TYPES, BILL_CATEGORIES, MAX_BILL_ITEMS, MAX_FREE_TEXT_CHARS, RELATIONSHIPS,
+    ADMISSION_TYPES, BILL_CATEGORIES, MAX_BILL_ITEMS, MAX_FREE_TEXT_CHARS, PROVIDERS, RELATIONSHIPS,
 )
-from securecare.security import looks_like_openai_key, redact_secrets
+from securecare.security import key_hint, looks_like_api_key, redact_secrets
 from securecare.ui.sidebar import Settings, flush_key_after_use, get_api_key
 
 
@@ -80,15 +80,16 @@ def render_autofill(settings: Settings) -> None:
             return
 
         key = get_api_key()
+        label = PROVIDERS[settings.provider]["label"]
         if not key:
-            st.warning("Enter your OpenAI API key in the sidebar to use autofill.")
+            st.warning(f"Enter your {label} API key in the sidebar to use autofill.")
             return
-        if not looks_like_openai_key(key):
-            st.error("That does not look like an OpenAI API key (it should start with 'sk-').")
+        if not looks_like_api_key(key, settings.provider):
+            st.error(f"That does not look like a {label} API key ({key_hint(settings.provider)}).")
             return
         try:
             with st.spinner("Reading your message…"):
-                extraction = extract_claim_from_text(build_llm(key, settings.model), text)
+                extraction = extract_claim_from_text(build_llm(key, settings.model, settings.provider), text)
         except Exception as exc:  # noqa: BLE001
             st.error(f"AI call failed: {redact_secrets(f'{type(exc).__name__}: {exc}')[:250]}")
             return

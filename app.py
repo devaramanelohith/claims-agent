@@ -11,9 +11,9 @@ This file is only the UI shell. The product logic lives in securecare/:
 import streamlit as st
 
 from securecare.agents.llm import build_llm
-from securecare.config import APP_TAGLINE, APP_TITLE
+from securecare.config import APP_TAGLINE, APP_TITLE, PROVIDERS
 from securecare.graph import build_claim_graph, build_initial_state, run_claim
-from securecare.security import looks_like_openai_key, redact_secrets
+from securecare.security import key_hint, looks_like_api_key, redact_secrets
 from securecare.ui.autofill import render_autofill
 from securecare.ui.form import load_sample, render_claim_form, reset_form
 from securecare.ui.results import render_result
@@ -52,10 +52,11 @@ with tab_claim:
         else:
             llm, notice = None, None
             api_key = get_api_key()
-            if api_key and looks_like_openai_key(api_key):
-                llm = build_llm(api_key, settings.model)        # fresh client, never cached
+            if api_key and looks_like_api_key(api_key, settings.provider):
+                llm = build_llm(api_key, settings.model, settings.provider)   # fresh client, never cached
             elif api_key:
-                notice = "The key you entered does not look like an OpenAI key, so AI drafting was skipped."
+                notice = (f"The key you entered does not look like a {PROVIDERS[settings.provider]['label']} key "
+                          f"({key_hint(settings.provider)}), so AI drafting was skipped.")
             api_key = ""                                        # drop our reference to the secret
 
             try:

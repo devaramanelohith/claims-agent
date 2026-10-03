@@ -27,8 +27,30 @@ DOCUMENT_LABELS: Dict[str, str] = {
 }
 
 # ----------------------------- LLM settings (no secrets here) -----------------------------
-MODEL_OPTIONS = ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano"]
-DEFAULT_MODEL = MODEL_OPTIONS[0]
+# Each provider: label shown in the sidebar, model choices (first = default), key placeholder.
+# OpenRouter speaks the OpenAI API, so it reuses ChatOpenAI with a different base URL.
+PROVIDERS: Dict[str, Dict[str, Any]] = {
+    "openrouter": {
+        "label": "OpenRouter",
+        "models": ["openai/gpt-4o-mini", "google/gemini-2.5-flash", "anthropic/claude-haiku-4.5"],
+        "placeholder": "sk-or-v1-...",
+        "key_url": "https://openrouter.ai/keys",
+    },
+    "gemini": {
+        "label": "Google Gemini",
+        "models": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.5-pro"],
+        "placeholder": "AIza...",
+        "key_url": "https://aistudio.google.com/apikey",
+    },
+    "openai": {
+        "label": "OpenAI",
+        "models": ["gpt-4o-mini", "gpt-4.1-mini", "gpt-4.1-nano"],
+        "placeholder": "sk-...",
+        "key_url": "https://platform.openai.com/api-keys",
+    },
+}
+DEFAULT_PROVIDER = "openrouter"
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 LLM_TIMEOUT_SECONDS = 30
 MAX_LLM_ATTEMPTS = 2          # bounded retry loop in the graph (draft -> verify -> draft ...)
 MAX_FREE_TEXT_CHARS = 4000    # cap for the "paste your email" autofill
